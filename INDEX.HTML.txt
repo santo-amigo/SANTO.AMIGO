@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Santo Amigo</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="chat-container">
+        <div class="header">
+            <h1>Santo Amigo</h1>
+            <p>Seu conselheiro para a jornada espiritual</p>
+        </div>
+        <div id="chat-box">
+            <div class="message bot-message">
+                <p>Paz e bem! Sou seu Santo Amigo. Em que posso te ajudar hoje na sua caminhada de fé?</p>
+            </div>
+        </div>
+        <div id="input-container">
+            <input type="text" id="user-input" placeholder="Digite sua pergunta aqui...">
+            <button id="send-btn">Enviar</button>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

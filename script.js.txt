@@ -1,0 +1,118 @@
+// Sua Chave de API já está inserida aqui.
+const API_KEY = "AIzaSyCXkTcYlqY0OWTy_WCjjBEmtVY4-6c-nPs"; 
+
+const sendBtn = document.getElementById('send-btn');
+const userInput = document.getElementById('user-input');
+const chatBox = document.getElementById('chat-box');
+
+// --- INÍCIO DAS MELHORIAS V3 ---
+
+const MAX_HISTORY_LENGTH = 20; // Limita a memória às últimas 20 trocas (user + bot)
+
+function loadConversation() {
+    const storedHistory = sessionStorage.getItem('santoAmigoHistory');
+    if (storedHistory) {
+        return JSON.parse(storedHistory);
+    } else {
+        return [
+            { role: "user", parts: [{ text: `Seu nome de agente é Santo Amigo. Você me ajudará na minha caminhada espiritual, sendo um conselheiro, conhecedor do catolicismo, sagrada escritura, literatura católica, santos e tudo que rodear o mundo católico. Você deve manter essa persona em todas as respostas. Suas respostas devem ser compassivas, sábias e sempre enraizadas na fé católica.` }] },
+            { role: "model", parts: [{ text: "Paz e bem! Sou seu Santo Amigo. Em que posso te ajudar hoje na sua caminhada de fé?" }] }
+        ];
+    }
+}
+
+function saveConversation(history) {
+    sessionStorage.setItem('santoAmigoHistory', JSON.stringify(history));
+}
+
+// Função que garante que o histórico não cresça para sempre
+function pruneHistory(history) {
+    // Mantém a instrução do sistema + as últimas MAX_HISTORY_LENGTH mensagens
+    if (history.length > MAX_HISTORY_LENGTH + 1) {
+        // Pega a primeira mensagem (instrução) e concatena com as últimas mensagens
+        const systemInstruction = history.slice(0, 1);
+        const recentMessages = history.slice(history.length - MAX_HISTORY_LENGTH);
+        return systemInstruction.concat(recentMessages);
+    }
+    return history;
+}
+
+let conversationHistory = loadConversation();
+
+// --- FIM DAS MELHORIAS V3 ---
+
+function appendMessage(message, className) {
+    const messageElement = document.createElement('div');
+    messageElement.classList.add('message', className);
+    
+    let formattedMessage = message.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    formattedMessage = formattedMessage.replace(/\n/g, '  
+');
+
+    messageElement.innerHTML = `<p>${formattedMessage}</p>`;
+    chatBox.appendChild(messageElement);
+    chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+function displayHistory() {
+    for (let i = 2; i < conversationHistory.length; i++) {
+        const message = conversationHistory[i];
+        const className = message.role === 'user' ? 'user-message' : 'bot-message';
+        appendMessage(message.parts[0].text, className);
+    }
+}
+
+async function sendMessage() {
+    const userMessage = userInput.value.trim();
+    if (userMessage === '') return;
+
+    appendMessage(userMessage, 'user-message');
+    userInput.value = '';
+    
+    conversationHistory.push({ role: "user", parts: [{ text: userMessage }] });
+    
+    // Garante que o histórico não fique muito longo antes de salvar e enviar
+    conversationHistory = pruneHistory(conversationHistory);
+    saveConversation(conversationHistory);
+
+    try {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${API_KEY}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: conversationHistory } )
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            console.error('Erro da API:', errorData);
+            throw new Error('A resposta da rede não foi boa.');
+        }
+
+        const data = await response.json();
+        
+        // Verificação de segurança da resposta
+        if (!data.candidates || data.candidates.length === 0 || !data.candidates[0].content) {
+            console.error('Resposta inválida ou bloqueada:', data);
+            throw new Error('A IA não forneceu uma resposta válida (pode ter sido bloqueada por segurança).');
+        }
+        
+        const botMessage = data.candidates[0].content.parts[0].text;
+        
+        conversationHistory.push({ role: "model", parts: [{ text: botMessage }] });
+        saveConversation(conversationHistory);
+        appendMessage(botMessage, 'bot-message');
+
+    } catch (error) {
+        console.error('Erro no sendMessage:', error);
+        appendMessage('Desculpe, ocorreu um erro. A IA pode não ter respondido devido a um bloqueio de segurança ou um histórico de conversa muito longo. Por favor, tente reformular sua pergunta ou atualize a página (F5) para recomeçar.', 'bot-message');
+    }
+}
+
+sendBtn.addEventListener('click', sendMessage);
+userInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        sendMessage();
+    }
+});
+
+displayHistory();
